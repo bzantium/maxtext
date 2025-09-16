@@ -64,3 +64,64 @@ class TokenizeAndTrim(grain.MapTransform):
     self.__dict__.update(state)
     self._processor = None
     self._initialize_processor_lock = threading.Lock()
+
+
+@dataclasses.dataclass
+class TokenizeAndChunk(grain.experimental.FlatMapTransform):
+  """Tokenize and chunk features into multiple examples of sequence length."""
+
+  # pylint: disable=attribute-defined-outside-init
+  feature_names: str | Sequence[str]
+  sequence_length: int | Sequence[int]
+  add_bos: bool
+  add_eos: bool
+  tokenizer: tokenizer.SentencePieceTokenizerGrain | tokenizer.HFTokenizer
+  max_fan_out: int = 2048
+
+  def __post_init__(self):
+    self._processor = None
+    self._initialize_processor_lock = threading.Lock()
+    if isinstance(self.feature_names, str):
+      self.feature_names = [self.feature_names]
+    if isinstance(self.sequence_length, int):
+      self.sequence_length = [self.sequence_length] * len(self.feature_names)
+
+  def flat_map(self, element: dict[str, Any]) -> list[dict[str, Any]]:
+    """Maps one element to a LIST of chunked elements."""
+    if self._processor is None:
+      with self._initialize_processor_lock:
+        if self._processor is None:  # Ensures only one thread initializes SPP.
+          self._processor = self.tokenizer
+
+    primary_feature_name = self.feature_names[0]
+    max_len = self.sequence_length[0]
+    text = element[primary_feature_name]
+
+    token_ids = self._processor.encode(text)
+
+    if not token_ids:
+      return []
+
+    output_elements = []
+
+    for i in range(0, len(token_ids), max_len):
+      chunk = token_ids[i : i + max_len]
+      chunk_np = np.asarray(chunk, dtype=np.int32)
+      new_element = element.copy()
+
+      for feature_name in self.feature_names:
+        new_element[feature_name] = chunk_np
+
+      output_elements.append(new_element)
+    return output_elements
+
+  def __getstate__(self):
+    state = self.__dict__.copy()
+    del state["_processor"]
+    del state["_initialize_processor_lock"]
+    return state
+
+  def __setstate__(self, state):
+    self.__dict__.update(state)
+    self._processor = None
+    self._initialize_processor_lock = threading.Lock()

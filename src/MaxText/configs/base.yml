@@ -458,6 +458,7 @@ tokenize_train_data: True  # False if the dataset is pre-tokenized
 tokenize_eval_data: True  # False if the dataset is pre-tokenized
 add_bos: True
 add_eos: True
+use_truncation: True # If False, use chunking for long sequences instead of truncation
 
 # Dataset
 per_device_batch_size: 12.0

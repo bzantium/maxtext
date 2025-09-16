@@ -115,11 +115,18 @@ def pretrain_preprocessing_pipeline(dataset, config, data_columns, tokenize, gra
     pad_id = -1
 
   if tokenize:
-    dataset = dataset.map(
-        _grain_tokenizer.TokenizeAndTrim(
-            data_columns, config.max_target_length, config.add_bos, config.add_eos, tokenizer_model
-        )
-    )
+    if config.use_truncation:
+      dataset = dataset.map(
+          _grain_tokenizer.TokenizeAndTrim(
+              data_columns, config.max_target_length, config.add_bos, config.add_eos, tokenizer_model
+          )
+      )
+    else:
+      dataset = dataset.apply(
+          _grain_tokenizer.TokenizeAndChunk(
+              data_columns, config.max_target_length, config.add_bos, config.add_eos, tokenizer_model
+          )
+      )
 
   # Pack and Batch examples.
   if config.packing:
