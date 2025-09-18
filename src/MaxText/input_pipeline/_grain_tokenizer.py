@@ -28,8 +28,8 @@ class TokenizeAndTrim(grain.MapTransform):
   """Tokenize and trim features to sequence length."""
 
   # pylint: disable=attribute-defined-outside-init
-  feature_names: str | Sequence[str]
-  sequence_length: int | Sequence[int]
+  text_column: str
+  sequence_length: int
   add_bos: bool
   add_eos: bool
   tokenizer: tokenizer.SentencePieceTokenizerGrain | tokenizer.HFTokenizer
@@ -37,10 +37,6 @@ class TokenizeAndTrim(grain.MapTransform):
   def __post_init__(self):
     self._processor = None
     self._initialize_processor_lock = threading.Lock()
-    if isinstance(self.feature_names, str):
-      self.feature_names = [self.feature_names]
-    if isinstance(self.sequence_length, int):
-      self.sequence_length = [self.sequence_length] * len(self.feature_names)
 
   def map(self, element: dict[str, Any]) -> dict[str, Any]:
     """Maps to each element."""
@@ -48,10 +44,10 @@ class TokenizeAndTrim(grain.MapTransform):
       with self._initialize_processor_lock:
         if self._processor is None:  # Ensures only one thread initializes SPP.
           self._processor = self.tokenizer
-    for feature_name, sequence_length in zip(self.feature_names, self.sequence_length, strict=True):
-      text = element[feature_name]
-      token_ids = self._processor.encode(text)[:sequence_length]
-      element[feature_name] = np.asarray(token_ids, dtype=np.int32)
+
+    text = element[self.text_column]
+    token_ids = self._processor.encode(text)[:self.sequence_length]
+    element[self.text_column] = np.asarray(token_ids, dtype=np.int32)
     return element
 
   def __getstate__(self):
@@ -71,8 +67,8 @@ class TokenizeAndChunk(grain.experimental.FlatMapTransform):
   """Tokenize and chunk features into multiple examples of sequence length."""
 
   # pylint: disable=attribute-defined-outside-init
-  feature_names: str | Sequence[str]
-  sequence_length: int | Sequence[int]
+  text_column: str
+  sequence_length: int
   add_bos: bool
   add_eos: bool
   tokenizer: tokenizer.SentencePieceTokenizerGrain | tokenizer.HFTokenizer
@@ -81,10 +77,6 @@ class TokenizeAndChunk(grain.experimental.FlatMapTransform):
   def __post_init__(self):
     self._processor = None
     self._initialize_processor_lock = threading.Lock()
-    if isinstance(self.feature_names, str):
-      self.feature_names = [self.feature_names]
-    if isinstance(self.sequence_length, int):
-      self.sequence_length = [self.sequence_length] * len(self.feature_names)
 
   def flat_map(self, element: dict[str, Any]) -> list[dict[str, Any]]:
     """Maps one element to a LIST of chunked elements."""
@@ -93,25 +85,20 @@ class TokenizeAndChunk(grain.experimental.FlatMapTransform):
         if self._processor is None:  # Ensures only one thread initializes SPP.
           self._processor = self.tokenizer
 
-    primary_feature_name = self.feature_names[0]
-    max_len = self.sequence_length[0]
-    text = element[primary_feature_name]
+    text = element.pop(self.text_column)
+    max_len = self.sequence_length
 
     token_ids = self._processor.encode(text)
 
     if not token_ids:
       return []
 
+    token_ids = np.array(token_ids, dtype=np.int32)
+
     output_elements = []
 
     for i in range(0, len(token_ids), max_len):
-      chunk = token_ids[i : i + max_len]
-      chunk_np = np.asarray(chunk, dtype=np.int32)
-      new_element = element.copy()
-
-      for feature_name in self.feature_names:
-        new_element[feature_name] = chunk_np
-
+      new_element = {**element, self.text_column: token_ids[i : i + max_len]}
       output_elements.append(new_element)
     return output_elements
 

@@ -43,20 +43,20 @@ class TokenizerTransformTest(unittest.TestCase):
     self.max_len = 5
     self.pad_length = 7
     self.pad_id = 0
-    self.feature_names = ["inputs", "targets"]
+    self.text_column = "text"
     self.mock_tokenizer = MockTokenizer()
     self.source_data = [
-        {"inputs": "a b c", "targets": "a b c"},
-        {"inputs": "d e f g h i j", "targets": "d e f g h i j"},
-        {"inputs": "", "targets": ""},
-        {"inputs": "k l m n o p q r s t", "targets": "k l m n o p q r s t"}
+        {"text": "a b c"},
+        {"text": "d e f g h i j"},
+        {"text": ""},
+        {"text": "k l m n o p q r s t"}
     ]
     self.base_ds = grain.MapDataset.source(self.source_data).to_iter_dataset()
 
   def test_tokenize_and_trim(self):
     """Tests the 1:1 MapTransform (truncation) logic."""
     trim_op = _grain_tokenizer.TokenizeAndTrim(
-        feature_names=self.feature_names,
+        text_column=self.text_column,
         sequence_length=self.max_len,
         add_bos=False,
         add_eos=False,
@@ -71,7 +71,7 @@ class TokenizerTransformTest(unittest.TestCase):
         np.array([], dtype=np.int32),
         np.array([11, 12, 13, 14, 15], dtype=np.int32)
     ]
-    result_inputs = [r["inputs"] for r in results]
+    result_inputs = [r["text"] for r in results]
     self.assertEqual(len(result_inputs), len(expected_inputs))
     for res, exp in zip(result_inputs, expected_inputs):
       assert_array_equal(res, exp)
@@ -79,7 +79,7 @@ class TokenizerTransformTest(unittest.TestCase):
   def test_tokenize_and_chunk(self):
     """Tests the 1:N FlatMapTransform (chunking) logic."""
     chunk_op = _grain_tokenizer.TokenizeAndChunk(
-        feature_names=self.feature_names,
+        text_column=self.text_column,
         sequence_length=self.max_len,
         add_bos=False,
         add_eos=False,
@@ -95,7 +95,7 @@ class TokenizerTransformTest(unittest.TestCase):
         np.array([11, 12, 13, 14, 15], dtype=np.int32),
         np.array([16, 17, 18, 19, 20], dtype=np.int32)
     ]
-    result_inputs = [r["inputs"] for r in results]
+    result_inputs = [r["text"] for r in results]
     self.assertEqual(len(result_inputs), len(expected_inputs))
     for res, exp in zip(result_inputs, expected_inputs):
       assert_array_equal(res, exp)
@@ -103,7 +103,7 @@ class TokenizerTransformTest(unittest.TestCase):
   def test_trim_and_pad_chaining(self):
     """Tests chaining TokenizeAndTrim.map() -> PadToMaxLength.map()"""
     trim_op = _grain_tokenizer.TokenizeAndTrim(
-        feature_names=self.feature_names,
+        text_column=self.text_column,
         sequence_length=self.max_len,
         add_bos=False,
         add_eos=False,
@@ -122,7 +122,7 @@ class TokenizerTransformTest(unittest.TestCase):
         np.array([0, 0, 0, 0, 0, 0, 0], dtype=np.int32),
         np.array([11, 12, 13, 14, 15, 0, 0], dtype=np.int32)
     ]
-    result_inputs = [r["inputs"] for r in results]
+    result_inputs = [r["text"] for r in results]
     self.assertEqual(len(result_inputs), len(expected_inputs))
     for res, exp in zip(result_inputs, expected_inputs):
       assert_array_equal(res, exp)
@@ -130,7 +130,7 @@ class TokenizerTransformTest(unittest.TestCase):
   def test_chunk_and_pad_chaining(self):
     """Tests chaining TokenizeAndChunk.apply() -> PadToMaxLength.map()"""
     chunk_op = _grain_tokenizer.TokenizeAndChunk(
-        feature_names=self.feature_names,
+        text_column=self.text_column,
         sequence_length=self.max_len,
         add_bos=False,
         add_eos=False,
@@ -150,7 +150,7 @@ class TokenizerTransformTest(unittest.TestCase):
         np.array([11, 12, 13, 14, 15, 0, 0], dtype=np.int32),
         np.array([16, 17, 18, 19, 20, 0, 0], dtype=np.int32),
     ]
-    result_inputs = [r["inputs"] for r in results]
+    result_inputs = [r["text"] for r in results]
     self.assertEqual(len(result_inputs), len(expected_inputs))
     for res, exp in zip(result_inputs, expected_inputs):
       assert_array_equal(res, exp)
