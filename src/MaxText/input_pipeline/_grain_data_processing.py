@@ -95,9 +95,7 @@ def pretrain_preprocessing_pipeline(dataset, config, data_columns, tokenize, gra
     dataset = dataset.map(_input_pipeline_utils.NormalizeFeatures(data_columns, tokenize))
 
   assert len(data_columns) == 1
-  text_column = "text"
-  data_columns = ("inputs", "targets")
-  rekey_dict = {col: text_column for col in data_columns}
+  text_column = data_columns[0]
 
   tokenizer_model = tokenizer.build_tokenizer(
       config.tokenizer_path,
@@ -128,6 +126,8 @@ def pretrain_preprocessing_pipeline(dataset, config, data_columns, tokenize, gra
           )
       )
 
+  data_columns = ("inputs", "targets")
+  rekey_dict = {col: text_column for col in data_columns}
   dataset = dataset.map(_input_pipeline_utils.Rekey(rekey_dict))
 
   # Pack and Batch examples.
