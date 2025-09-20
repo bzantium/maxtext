@@ -28,6 +28,8 @@ class TokenizerTransformBase:
   """Base class for tokenizer transforms with common functionality."""
 
   # pylint: disable=attribute-defined-outside-init
+  feature_names: str | Sequence[str]
+  sequence_length: int | Sequence[int]
   add_bos: bool
   add_eos: bool
   tokenizer: tokenizer.SentencePieceTokenizerGrain | tokenizer.HFTokenizer
@@ -35,13 +37,23 @@ class TokenizerTransformBase:
   def __post_init__(self):
     self._processor = None
     self._initialize_processor_lock = threading.Lock()
+    # Convert single values to lists for consistent processing
+    if isinstance(self.feature_names, str):
+      self.feature_names = [self.feature_names]
+    if isinstance(self.sequence_length, int):
+      self.sequence_length = [self.sequence_length] * len(self.feature_names)
 
   def _get_processor(self):
     if self._processor is None:
       with self._initialize_processor_lock:
-        if self._processor is None:  # Ensures only one thread initializes SPP.
+        if self._processor is None:  # Ensures only one thread initializes processor.
           self._processor = self.tokenizer
     return self._processor
+
+  def _encode(self, text: str) -> list[int]:
+    """Common method to encode text using the tokenizer."""
+    processor = self._get_processor()
+    return processor.encode(text)
 
   def __getstate__(self):
     state = self.__dict__.copy()
@@ -58,23 +70,15 @@ class TokenizerTransformBase:
 @dataclasses.dataclass
 class TokenizeAndTrim(TokenizerTransformBase, grain.MapTransform):
   """Tokenize and trim features to sequence length."""
-  # pylint: disable=attribute-defined-outside-init
-  feature_names: str | Sequence[str]
-  sequence_length: int | Sequence[int]
 
   def __post_init__(self):
     super().__post_init__()
-    if isinstance(self.feature_names, str):
-      self.feature_names = [self.feature_names]
-    if isinstance(self.sequence_length, int):
-      self.sequence_length = [self.sequence_length] * len(self.feature_names)
 
   def map(self, element: dict[str, Any]) -> dict[str, Any]:
     """Maps to each element."""
-    processor = self._get_processor()
-    for feature_name, sequence_length in zip(self.feature_names, self.sequence_length, strict=True):
+    for feature_name, max_length in zip(self.feature_names, self.sequence_length, strict=True):
       text = element[feature_name]
-      token_ids = processor.encode(text)[:sequence_length]
+      token_ids = self._encode(text)[:max_length]
       element[feature_name] = np.asarray(token_ids, dtype=np.int32)
     return element
 
@@ -83,24 +87,28 @@ class TokenizeAndTrim(TokenizerTransformBase, grain.MapTransform):
 class TokenizeAndChunk(TokenizerTransformBase, grain.experimental.FlatMapTransform):
   """Tokenize and chunk features into multiple examples of sequence length."""
 
-  # pylint: disable=attribute-defined-outside-init
-  feature_name: str
-  sequence_length: int
   max_fan_out: int = 2048
 
-  def flat_map(self, element: dict[str, Any]) -> list[dict[str, Any]]:
-    processor = self._get_processor()
-    text = element[self.feature_name]
-    max_len = self.sequence_length
+  def __post_init__(self):  
+    super().__post_init__()
+    # TokenizeAndChunk only supports single feature for chunking
+    assert len(self.feature_names) == 1, "TokenizeAndChunk only supports single feature name"
+    assert len(self.sequence_length) == 1, "TokenizeAndChunk only supports single sequence length"
+    self.feature_name = self.feature_names[0]  # For backward compatibility
+    self.sequence_length = self.sequence_length[0]  # Convert back to int for chunking
 
-    token_ids = processor.encode(text)
+  def flat_map(self, element: dict[str, Any]) -> list[dict[str, Any]]:
+    text = element[self.feature_name]
+    chunk_size = self.sequence_length
+
+    token_ids = self._encode(text)
 
     if not token_ids:
       return []
 
     output_elements = []
-    for i in range(0, len(token_ids), max_len):
-      chunk = np.asarray(token_ids[i : i + max_len], dtype=np.int32)
+    for start_idx in range(0, len(token_ids), chunk_size):
+      chunk = np.asarray(token_ids[start_idx : start_idx + chunk_size], dtype=np.int32)
       new_element = {self.feature_name: chunk}
       output_elements.append(new_element)
     
