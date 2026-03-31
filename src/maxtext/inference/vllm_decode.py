@@ -106,7 +106,7 @@ def decode_with_vllm(config: Config) -> None:
       f"and EP={config.ici_expert_parallelism if enable_expert_parallel else 1}..."
   )
 
-  vllm_config_path = os.path.join(MAXTEXT_CONFIGS_DIR, "inference", "vllm.yml")
+  vllm_config_path = os.path.join(MAXTEXT_CONFIGS_DIR, "inference", "vllm.yaml")
   argv_list = ["", str(vllm_config_path), "log_config=False"]
   vllm_config = pyconfig.initialize(argv_list)
 

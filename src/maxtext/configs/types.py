@@ -2011,7 +2011,7 @@ class MaxTextConfig(
       custom_mesh_path = os.path.join(
           os.path.dirname(os.path.abspath(__file__)),
           "custom_mesh_and_rule",
-          f"{self.custom_mesh_and_rule}.yml",
+          f"{self.custom_mesh_and_rule}.yaml",
       )
       if os.path.exists(custom_mesh_path):
         with open(custom_mesh_path, "r") as f:  # pylint: disable=unspecified-encoding

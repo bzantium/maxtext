@@ -150,7 +150,7 @@ def get_model_mdn(model_name, scan_layers=True, verbose=False):
   # Setup config
   argv = [
       None,
-      os.path.join(MAXTEXT_PKG_DIR, "configs", "base.yml"),
+      os.path.join(MAXTEXT_PKG_DIR, "configs", "base.yaml"),
       f"model_name={model_name}",
       f"scan_layers={scan_layers}",
       "attention=dot_product",

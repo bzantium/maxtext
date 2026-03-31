@@ -21,7 +21,7 @@ are not marked.
 """
 
 import pytest
-from maxtext.common.gcloud_stub import is_decoupled
+from megatext.common.gcloud_stub import is_decoupled
 import jax
 import importlib.util
 

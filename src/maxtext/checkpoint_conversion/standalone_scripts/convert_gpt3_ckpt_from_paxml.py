@@ -71,7 +71,7 @@ def convert(paxml_ckpt_path, maxtext_model_name, base_output_directory, run_name
 
   base_args = [
       "",
-      os.path.join(MAXTEXT_PKG_DIR, "configs", "base.yml"),  # base arg
+      os.path.join(MAXTEXT_PKG_DIR, "configs", "base.yaml"),  # base arg
       "per_device_batch_size=1",
       "ici_fsdp_parallelism=-1",
       "ici_tensor_parallelism=1",

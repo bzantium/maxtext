@@ -30,7 +30,7 @@ MAXTEXT_REPO_ROOT = os.environ.get(
     else MAXTEXT_PKG_DIR,
 )
 
-# This is the configs root: with "base.yml"; "models/"; &etc.
+# This is the configs root: with "base.yaml"; "models/"; &etc.
 MAXTEXT_CONFIGS_DIR = os.environ.get("MAXTEXT_CONFIGS_DIR", os.path.join(MAXTEXT_PKG_DIR, "configs"))
 
 # This is the assets root: with "tokenizers/"; &etc.

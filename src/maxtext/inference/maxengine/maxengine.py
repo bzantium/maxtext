@@ -1768,7 +1768,7 @@ def create_engine_from_config_flags(
       args[k.strip()] = v.strip()
   assert "load_parameters_path" in args, "load_parameters_path must be defined"
   if maxengine_config_filepath is None:
-    maxengine_config_filepath = os.path.join(MAXTEXT_PKG_DIR, "configs", "base.yml")
+    maxengine_config_filepath = os.path.join(MAXTEXT_PKG_DIR, "configs", "base.yaml")
   updated_args = [
       os.path.join(MAXTEXT_PKG_DIR, "inference", "maxengine", "maxengine_server.py"),
       maxengine_config_filepath,

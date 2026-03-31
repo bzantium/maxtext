@@ -49,21 +49,21 @@ KEYS_NO_LOGGING = ("hf_access_token",)
 
 # Module paths to their default config file (relative to MAXTEXT_CONFIGS_DIR).
 _CONFIG_FILE_MAPPING: dict[str, str] = {
-    "maxtext.trainers.pre_train.train": "base.yml",
-    "maxtext.trainers.pre_train.train_compile": "base.yml",
-    "maxtext.trainers.post_train.distillation.train_distill": "post_train/distillation.yml",
-    "maxtext.trainers.post_train.rl.train_rl": "post_train/rl.yml",
-    "maxtext.trainers.post_train.sft.train_sft": "post_train/sft.yml",
-    "maxtext.trainers.post_train.sft.train_sft_deprecated": "post_train/sft.yml",
-    "maxtext.inference.decode": "base.yml",
-    "maxtext.inference.decode_multi": "base.yml",
-    "maxtext.inference.inference_microbenchmark": "base.yml",
-    "maxtext.inference.inference_microbenchmark_sweep": "base.yml",
-    "maxtext.inference.maxengine.maxengine_server": "base.yml",
-    "maxtext.inference.mlperf.microbenchmarks.benchmark_chunked_prefill": "base.yml",
-    "maxtext.inference.vllm_decode": "base.yml",
-    "maxtext.checkpoint_conversion.to_maxtext": "base.yml",
-    "maxtext.checkpoint_conversion.to_huggingface": "base.yml",
+    "maxtext.trainers.pre_train.train": "base.yaml",
+    "maxtext.trainers.pre_train.train_compile": "base.yaml",
+    "maxtext.trainers.post_train.distillation.train_distill": "post_train/distillation.yaml",
+    "maxtext.trainers.post_train.rl.train_rl": "post_train/rl.yaml",
+    "maxtext.trainers.post_train.sft.train_sft": "post_train/sft.yaml",
+    "maxtext.trainers.post_train.sft.train_sft_deprecated": "post_train/sft.yaml",
+    "maxtext.inference.decode": "base.yaml",
+    "maxtext.inference.decode_multi": "base.yaml",
+    "maxtext.inference.inference_microbenchmark": "base.yaml",
+    "maxtext.inference.inference_microbenchmark_sweep": "base.yaml",
+    "maxtext.inference.maxengine.maxengine_server": "base.yaml",
+    "maxtext.inference.mlperf.microbenchmarks.benchmark_chunked_prefill": "base.yaml",
+    "maxtext.inference.vllm_decode": "base.yaml",
+    "maxtext.checkpoint_conversion.to_maxtext": "base.yaml",
+    "maxtext.checkpoint_conversion.to_huggingface": "base.yaml",
 }
 
 
@@ -79,7 +79,7 @@ def _module_from_path(path: str) -> str | None:
 
 def _resolve_or_infer_config(argv: list[str]) -> tuple[str, list[str]]:
   """Resolves or infers config file path from module."""
-  if len(argv) >= 2 and argv[1].endswith(".yml"):
+  if len(argv) >= 2 and argv[1].endswith((".yaml", ".yml")):
     return resolve_config_path(argv[1]), argv[2:]
   module = _module_from_path(argv[0])
   if module not in _CONFIG_FILE_MAPPING:
@@ -97,6 +97,11 @@ def yaml_key_to_env_key(s: str) -> str:
 
 def resolve_config_path(param: str) -> str:
   """Resolve config path to auto rewrite to use new src folder."""
+  # Accept legacy .yml extension by trying the .yaml equivalent.
+  if param.endswith(".yml") and not os.path.isfile(param):
+    yaml_variant = param[:-4] + ".yaml"
+    if os.path.isfile(yaml_variant):
+      return yaml_variant
   if os.path.isfile(param):
     return param
   elif "MaxText" in param:
@@ -106,7 +111,11 @@ def resolve_config_path(param: str) -> str:
   # For pip-installed packages, strip the src prefix and resolve against
   # the installed configs directory (MAXTEXT_CONFIGS_DIR).
   if param.startswith("src/maxtext/configs/"):
-    candidate = os.path.join(MAXTEXT_CONFIGS_DIR, param[len("src/maxtext/configs/") :])
+    relative = param[len("src/maxtext/configs/"):]
+    # Also try .yml -> .yaml for the pip-install case.
+    if relative.endswith(".yml"):
+      relative = relative[:-4] + ".yaml"
+    candidate = os.path.join(MAXTEXT_CONFIGS_DIR, relative)
     if os.path.isfile(candidate):
       return candidate
   return os.path.join("src", param)
@@ -308,19 +317,19 @@ def initialize_pydantic(argv: list[str], **kwargs) -> MaxTextConfig:
   model_cfg = {}
   if model_name != "default":
     # First try relative to base config path
-    model_config_path = os.path.join(os.path.dirname(config_path), "models", f"{model_name}.yml")
+    model_config_path = os.path.join(os.path.dirname(config_path), "models", f"{model_name}.yaml")
     # Try looking for "models" under "src/maxtext/configs/"
     if not os.path.isfile(model_config_path):
       model_config_path = os.path.join(
           os.path.dirname(os.path.dirname(config_path)),
           "models",
-          f"{model_name}.yml",
+          f"{model_name}.yaml",
       )
 
     if not os.path.isfile(model_config_path):
       # Fallback to the default location within package
       dir_path = os.path.dirname(os.path.realpath(__file__))
-      model_config_path = os.path.join(dir_path, "configs", "models", f"{model_name}.yml")
+      model_config_path = os.path.join(dir_path, "configs", "models", f"{model_name}.yaml")
 
     if os.path.exists(model_config_path):
       model_loaded_cfg = omegaconf.OmegaConf.load(model_config_path)

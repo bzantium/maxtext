@@ -28,7 +28,7 @@ def main(argv: Sequence[str]):
   Example invocation:
   python3 -m MaxText.get_flops model_name=llama2-7b
   """
-  pyconfig_argv = [argv[0], os.path.join(MAXTEXT_PKG_DIR, "configs", "base.yml")] + cast(list[str], argv[1:])
+  pyconfig_argv = [argv[0], os.path.join(MAXTEXT_PKG_DIR, "configs", "base.yaml")] + cast(list[str], argv[1:])
   config = pyconfig.initialize(pyconfig_argv)
   tflops, _, _ = calculate_tflops_training_per_device(config, log=False)
   print(f"Total TFLOPs per device per step: {tflops}")
